@@ -19,7 +19,21 @@ import random
 
 random.seed(42)
 runOutputFileName = "prediction.txt"
+articles = {}
 
+
+class Article:
+    def __init__(self, id):
+        self.id = id
+        self.hyperpartisan = "hyperpartisan"
+        self.bias = "bias"
+        self.title = "title"
+        self.text = []
+        self.labeled_by = "labeled_by"
+        self.published_at = "published_at"
+        self.count_urls = 0
+        self.count_paragraphs = 0
+        self.count_quotes = 0
 
 def parse_options():
     """Parses the command line options."""
@@ -59,16 +73,44 @@ class HyperpartisanNewsRandomPredictor(xml.sax.ContentHandler):
     def __init__(self, outFile):
         xml.sax.ContentHandler.__init__(self)
         self.outFile = outFile
+        self.previousId = "null"
 
     def startElement(self, name, attrs):
         if name == "article":
             articleId = attrs.getValue("id") # id of the article for which hyperpartisanship should be predicted
+            self.previousId = articleId
+            if articleId not in articles.keys():
+                articles[articleId] = Article(articleId)
+            if "hyperpartisan" in attrs.keys():
+                articles[articleId].hyperpartisan = attrs.getValue("hyperpartisan")
+            if "bias" in attrs.keys():
+                articles[articleId].bias = attrs.getValue("bias")
+            if "title" in attrs.keys():
+                articles[articleId].title = attrs.getValue("title")
+
+            if "labeled-by" in attrs.keys():
+                articles[articleId].labeled = attrs.getValue("labeled-by")
+            if "published-at" in attrs.keys():
+                articles[articleId].published_at = attrs.getValue("published-at")
             prediction = random.choice(["true", "false"]) # random prediction
             confidence = random.random() # random confidence value for prediction
             # output format per line: "<article id> <prediction>[ <confidence>]"
             #   - prediction is either "true" (hyperpartisan) or "false" (not hyperpartisan)
             #   - confidence is an optional value to describe the confidence of the predictor in the prediction---the higher, the more confident
             self.outFile.write(articleId + " " + prediction + " " + str(confidence) + "\n")
+        if name == "p":
+            articles[self.previousId].count_paragraphs += 1
+        if name == "q":
+            articles[self.previousId].count_quotes += 1
+        if name == "a":
+            articles[self.previousId].count_urls += 1
+
+    def characters(self, content):
+        try:
+            if self.previousId != "null":
+                articles[self.previousId].text.append(content)
+        except AttributeError:
+            print(self.previousId)
 
 
 ########## MAIN ##########
@@ -81,6 +123,7 @@ def main(inputDataset, outputDir):
         for file in os.listdir(inputDataset):
             if file.endswith(".xml"):
                 with open(inputDataset + "/" + file) as inputRunFile:
+                    print(file)
                     xml.sax.parse(inputRunFile, HyperpartisanNewsRandomPredictor(outFile))
 
 
