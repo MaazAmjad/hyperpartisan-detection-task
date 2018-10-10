@@ -11,15 +11,20 @@
 
 from __future__ import division
 
+import gc
 import getopt
 import os
 import random
 import sys
 import xml.sax
 
-from article import Article
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
-# import pickle
+from article import Article
 
 random.seed(42)
 runOutputFileName = "prediction.txt"
@@ -107,6 +112,12 @@ class HyperpartisanNewsRandomPredictor(xml.sax.ContentHandler):
 
 ########## MAIN ##########
 
+def extract_features(filename):
+    file = open(filename, encoding="ISO-8859-1").readlines()
+    vectorizer = CountVectorizer()
+    vectorizer.fit(file)
+    return vectorizer
+
 
 def main(inputDataset, outputDir):
     """Main method of this module."""
@@ -118,10 +129,45 @@ def main(inputDataset, outputDir):
                     print(file)
                     xml.sax.parse(inputRunFile, HyperpartisanNewsRandomPredictor(outFile))
 
-    # pickle.dump(articles, open("articles.p", "wb"))
     print("The predictions have been written to the output folder.")
 
 
 if __name__ == '__main__':
     main(*parse_options())
+    hedges_vectorizer = extract_features("./lists/hedges.txt")
+    boosters_vectorizer = extract_features("./lists/boosters.txt")
+    negatives_vectorizer = extract_features("./lists/opinion-lexicon-English/negative-words.txt")
+    positives_vectorizer = extract_features("./lists/opinion-lexicon-English/positive-words.txt")
+    gc.collect()
+    X = []
+    y = []
+    for articleid in articles:
+        text = articles[articleid].text
+        articles[articleid].hedges = sum(hedges_vectorizer.transform(text).toarray())
+        articles[articleid].negatives = sum(negatives_vectorizer.transform(text).toarray())
+        articles[articleid].positives = sum(positives_vectorizer.transform(text).toarray())
+        articles[articleid].boosters = sum(boosters_vectorizer.transform(text).toarray())
+        features = np.concatenate((articles[articleid].hedges, articles[articleid].negatives,
+                                   articles[articleid].positives, articles[articleid].boosters), axis=None)
 
+        X.append(features)
+        if articles[articleid].hyperpartisan == "true":
+            y.append(1)
+        else:
+            y.append(0)
+        gc.collect()
+    X = np.array(X)
+    y = np.array(y)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+    reg = LinearRegression().fit(X_train, y_train)
+    y_pred = reg.predict(X_test)
+    threshold = 0.5
+    print(classification_report(y_test, y_pred > threshold))
+    # Plot outputs
+    # plt.scatter(X_test, y_test,  color='black')
+    # plt.plot(X_test, y_pred, color='blue', linewidth=3)
+
+    # plt.xticks(())
+    # plt.yticks(())
+
+    # plt.show()

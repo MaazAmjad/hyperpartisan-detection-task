@@ -10,3 +10,7 @@ class Article:
         self.count_urls = 0
         self.count_paragraphs = 0
         self.count_quotes = 0
+        self.hedges = []
+        self.boosters = []
+        self.negatives = []
+        self.positives = []
