@@ -18,10 +18,11 @@ import random
 import sys
 import xml.sax
 
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import train_test_split
 
 from article import Article
@@ -146,9 +147,9 @@ if __name__ == '__main__':
         articles[articleid].hedges = sum(hedges_vectorizer.transform(text).toarray())
         articles[articleid].negatives = sum(negatives_vectorizer.transform(text).toarray())
         articles[articleid].positives = sum(positives_vectorizer.transform(text).toarray())
-        articles[articleid].boosters = sum(boosters_vectorizer.transform(text).toarray())
+        # articles[articleid].boosters = sum(boosters_vectorizer.transform(text).toarray())
         features = np.concatenate((articles[articleid].hedges, articles[articleid].negatives,
-                                   articles[articleid].positives, articles[articleid].boosters), axis=None)
+                                   articles[articleid].positives), axis=None)
 
         X.append(features)
         if articles[articleid].hyperpartisan == "true":
@@ -163,11 +164,12 @@ if __name__ == '__main__':
     y_pred = reg.predict(X_test)
     threshold = 0.5
     print(classification_report(y_test, y_pred > threshold))
+    print(accuracy_score(y_test, y_pred > threshold))
     # Plot outputs
-    # plt.scatter(X_test, y_test,  color='black')
-    # plt.plot(X_test, y_pred, color='blue', linewidth=3)
+    plt.scatter(X_test[:, 0], y_test, color='black')
+    plt.plot(X_test[:, 0], y_pred, color='blue', linewidth=3)
 
-    # plt.xticks(())
-    # plt.yticks(())
+    plt.xticks(())
+    plt.yticks(())
 
-    # plt.show()
+    plt.show()
