@@ -8,7 +8,7 @@
 # 1. convert everything to unigrams(TF-IDF encoding)
 # 2. for every group of features "class" have a model (LR and SVM)
 # 3. have 1 model that combines all features (LR and SVM)
-from pickle import dump
+from pickle import dump, load
 from xml.dom import minidom
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -21,6 +21,10 @@ def save_dataset(dataset, filename):
     dump(dataset, open(filename, 'wb'))
     print('Saved: %s' % filename)
 
+
+# load a clean dataset
+def load_dataset(filename):
+    return load(open(filename, 'rb'))
 
 class DataProcessing(object):
     def __init__(self):
