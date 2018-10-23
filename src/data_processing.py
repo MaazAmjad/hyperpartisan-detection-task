@@ -13,7 +13,7 @@ from xml.dom import minidom
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from articleclass import ArticleClass
+from article_class import ArticleClass
 
 
 # save a dataset to file
@@ -25,6 +25,7 @@ def save_dataset(dataset, filename):
 # load a clean dataset
 def load_dataset(filename):
     return load(open(filename, 'rb'))
+
 
 class DataProcessing(object):
     def __init__(self):
