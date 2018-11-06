@@ -76,15 +76,32 @@ class DataProcessing(object):
 
         return articles
 
+    def read_titles(self, articles_filename, labels_filename):
+        articles_file = minidom.parse(articles_filename)
+        labels_file = minidom.parse(labels_filename)
+        articles_data = articles_file.getElementsByTagName('article')
+        articles_labels = labels_file.getElementsByTagName('article')
+        articles = dict()
+        for article in articles_data:
+            article_id = article.attributes['id'].value
+            articles[article_id] = ArticleClass(article_id)
+            articles[article_id].title = article.attributes['title'].value
+            articles[article_id].clean_title()
+
+        for label in articles_labels:
+            article_id = label.attributes['id'].value
+            articles[article_id].hyperpartisan = (1 if label.attributes['hyperpartisan'].value == "true" else 0)
+        print("Done reading data")
+
+        return articles
+
 
 if __name__ == '__main__':
     dataprocessor = DataProcessing()
-    articles_training = dataprocessor.read_articles("/tmp/pycharm_project_127/data/articles-training-20180831.xml",
-                                                    "/tmp/pycharm_project_127/data/ground-truth-training-20180831.xml",
-                                                    training=True)
-    articles_testing = dataprocessor.read_articles("/tmp/pycharm_project_127/data/articles-validation-20180831.xml",
-                                                   "/tmp/pycharm_project_127/data/ground-truth-validation-20180831.xml",
-                                                   training=False)
+    articles_training = dataprocessor.read_titles("/tmp/pycharm_project_127/data/articles-training-20180831.xml",
+                                                  "/tmp/pycharm_project_127/data/ground-truth-training-20180831.xml")
+    articles_testing = dataprocessor.read_titles("/tmp/pycharm_project_127/data/articles-validation-20180831.xml",
+                                                 "/tmp/pycharm_project_127/data/ground-truth-validation-20180831.xml")
     # articles = dataprocessor.read_articles("/tmp/pycharm_project_127/data/test/articles-training-text.xml",
     #                                       "/tmp/pycharm_project_127/data/test/articles-training.xml", training=True)
     X_train = []
@@ -97,11 +114,11 @@ if __name__ == '__main__':
     #    y_train.append(articles[id].hyperpartisan)
 
     for id in articles_training:
-        X_train.append(articles_training[id].text)
+        X_train.append(articles_training[id].title)
         y_train.append(articles_training[id].hyperpartisan)
 
     for id in articles_testing:
-        X_test.append(articles_testing[id].text)
+        X_test.append(articles_testing[id].title)
         y_test.append(articles_testing[id].hyperpartisan)
 
     print("Done appending labels")
@@ -109,8 +126,8 @@ if __name__ == '__main__':
     # X_train = dataprocessor.vectorizer.transform(X_train)
     # X_test = dataprocessor.vectorizer.transform(X_test)
 
-    save_dataset([X_train, y_train], 'pkl-objects/train_v.pkl')
-    save_dataset([X_test, y_test], 'pkl-objects/test_v.pkl')
-    save_dataset(dataprocessor.vectorizer, 'pkl-objects/vectorizer.pkl')
+    save_dataset([X_train, y_train], 'pkl-objects/train_titles.pkl')
+    save_dataset([X_test, y_test], 'pkl-objects/test_titles.pkl')
+    # save_dataset(dataprocessor.vectorizer, 'pkl-objects/vectorizer.pkl')
 
     print("Done vectorizing")
