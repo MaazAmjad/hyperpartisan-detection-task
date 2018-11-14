@@ -11,9 +11,10 @@
 from pickle import dump, load
 from xml.dom import minidom
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-
 from article_class import ArticleClass
+
+
+# from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 # save a dataset to file
@@ -28,9 +29,10 @@ def load_dataset(filename):
 
 
 def extract_features(vocabulary):
-    vectorizer = TfidfVectorizer()
-    vectorizer.fit(vocabulary)
-    return vectorizer
+    # vectorizer = TfidfVectorizer()
+    # vectorizer.fit(vocabulary)
+    # return vectorizer
+    return None
 
 
 class DataProcessing(object):
