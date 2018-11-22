@@ -1,8 +1,8 @@
 
 from scipy.sparse import csr_matrix
 
-from data_processing import save_dataset, load_dataset
-from dictionary_features import liwc_features_list, NRC_VAD_Lexicon_features_list
+from preprocessing.data_processing import save_dataset, load_dataset
+from preprocessing.dictionary_features import liwc_features_list, NRC_VAD_Lexicon_features_list
 
 
 def count_features(filename, feature_vectorizer):

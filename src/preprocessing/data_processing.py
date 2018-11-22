@@ -11,7 +11,7 @@
 from pickle import dump, load
 from xml.dom import minidom
 
-from article_class import ArticleClass
+from preprocessing.article_class import ArticleClass
 
 
 # from sklearn.feature_extraction.text import TfidfVectorizer

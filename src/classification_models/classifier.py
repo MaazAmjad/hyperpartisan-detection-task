@@ -3,7 +3,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.svm import LinearSVC
 
-from data_processing import load_dataset, extract_features, save_dataset
+from preprocessing.data_processing import load_dataset, extract_features, save_dataset
 
 
 def classifier_init(name):

@@ -4,7 +4,7 @@ from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
 
-from data_processing import load_dataset
+from preprocessing.data_processing import load_dataset
 
 if __name__ == '__main__':
     train, label_train = load_dataset("pkl-objects/train_titles.pkl")
