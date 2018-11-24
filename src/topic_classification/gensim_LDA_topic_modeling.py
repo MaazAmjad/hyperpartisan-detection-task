@@ -14,17 +14,17 @@ import csv
 
 
 def print_topics(lda_model,n_topics,n_words=15):
-	print('\n============================')
-	print('printing the top {} words in {} topics'.format(n_words,n_topics))
-	for topic in lda_model.show_topics(n_topics, n_words):
-	    words = ""
-	    for i, word in enumerate(topic[1].split('+')):
-	        if i == len(topic[1].split('+')) -1:
-	            words += " "+word.split('*')[1][1:-1]
-	        else:
-	            words += " "+word.split('*')[1][1:-2]
-	    print(words+"\n")
-	print('============================\n')
+    print('\n============================')
+    print('printing the top {} words in {} topics'.format(n_words,n_topics))
+    for topic in lda_model.show_topics(n_topics, n_words):
+        words = ""
+        for i, word in enumerate(topic[1].split('+')):
+            if i == len(topic[1].split('+')) -1:
+                words += " "+word.split('*')[1][1:-1]
+            else:
+                words += " "+word.split('*')[1][1:-2]
+        print(words+"\n")
+    print('============================\n')
 
 
 stopwords = set(nltk.corpus.stopwords.words('english'))
