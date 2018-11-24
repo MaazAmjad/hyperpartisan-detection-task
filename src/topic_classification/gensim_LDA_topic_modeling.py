@@ -47,18 +47,38 @@ print('Done with test corpus')
 #--------------------------------------------------------------------------
 # LDA with 5 topics
 lda5 = models.LdaModel(corpus, id2word=dictionary, num_topics=5)
-lda5.save('../model/lda5.model')
+lda5.save('model/lda5.model')
 print('Done with LDA 5')
 corpus_lda5 = lda5[corpus]
 test_lda5 = lda5[test_corpus]
 print('Done with topic distribution of training data under LDA 5')
 print_topics(lda5,5)
+# ============================
+# printing the top 15 words in 5 topics
+#  said state trump would president republican law people new say year house one court also
+#  said one say like people year time new first get two know game day dont
+#  de la el en que los del un film una con por se para su
+#  war state government country people said would one american world military president united political also
+#  company year said percent million market stock new billion share business price also bank would
+# ============================
+
+with open('document2topic/training5topics.csv', 'w',newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',')
+        for line in corpus_lda5:
+            writer.writerow(line)
+with open('document2topic/test5topics.csv', 'w',newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',')
+        for line in test_lda5:
+            writer.writerow(line)
+
+
+
 #--------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------
 # LDA with 10 topics
 # lda10 = models.LdaModel(corpus, id2word=dictionary, num_topics=10)
-lda10 =  models.LdaModel.load('../model/lda.model')
+lda10 =  models.LdaModel.load('model/lda.model')
 print('Done with LDA 10')
 corpus_lda10 = lda10[corpus]
 test_lda10 = lda10[test_corpus]
@@ -80,7 +100,7 @@ with open('document2topic/test10topics.csv', 'w',newline='') as csv_file:
 #--------------------------------------------------------------------------
 # LDA with 30 topics, same number as the NYT dataset
 lda30 = models.LdaModel(corpus, id2word=dictionary, num_topics=30)
-lda30.save('../model/lda30.model')
+lda30.save('model/lda30.model')
 print('Done with LDA 30')
 corpus_lda30 = lda30[corpus]
 test_lda30 = lda30[test_corpus]
@@ -96,3 +116,26 @@ with open('document2topic/test30topics.csv', 'w',newline='') as csv_file:
         for line in test_lda30:
             writer.writerow(line)
 #--------------------------------------------------------------------------
+
+
+
+
+#----------------------------Model Evaluation------------------------------
+from gensim.models import CoherenceModel
+print('\nPerplexity: ', lda5.log_perplexity(corpus))
+coherence_model_lda5 = CoherenceModel(model=lda5, texts=texts, dictionary=dictionary, coherence='c_v')
+coherence_lda5 = coherence_model_lda5.get_coherence()
+print('\nCoherence Score: ', coherence_lda5)
+# Perplexity:  -8.709969881488803
+# 
+
+print('\nPerplexity: ', lda10.log_perplexity(corpus))
+coherence_model_lda10 = CoherenceModel(model=lda10, texts=texts, dictionary=dictionary, coherence='c_v')
+coherence_lda10 = coherence_model_lda10.get_coherence()
+print('\nCoherence Score: ', coherence_lda10)
+
+print('\nPerplexity: ', lda30.log_perplexity(corpus))
+coherence_model_lda30 = CoherenceModel(model=lda30, texts=texts, dictionary=dictionary, coherence='c_v')
+coherence_lda30 = coherence_model_lda30.get_coherence()
+print('\nCoherence Score: ', coherence_lda30)
+#----------------------------------------------------------------------------
