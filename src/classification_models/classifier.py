@@ -1,3 +1,5 @@
+import numpy as np
+from gensim import models
 from scipy.sparse import hstack
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
@@ -70,7 +72,9 @@ def classification_with_topic():
     X_train_liwc, y_train = load_dataset("pkl-objects/train_liwc.pkl")
     X_test_liwc, y_test = load_dataset("pkl-objects/test_liwc.pkl")
     X_train_topics = load_dataset("corpus.pkl")
+    X_train_topics = features_padding(doc_topics=X_train_topics, n_topics=10)
     X_test_topics = load_dataset("test_corpus.pkl")
+    X_test_topics = features_padding(doc_topics=X_test_topics, n_topics=10)
     X_train = hstack([X_train_liwc, X_train_topics])
     X_test = hstack([X_test_liwc, X_test_topics])
     feature = "combined_lwic_topics"
@@ -78,6 +82,19 @@ def classification_with_topic():
     classify(feature, classifier_n, X_train, X_test, y_train, y_test)
     classifier_n = "SVM"
     classify(feature, classifier_n, X_train, X_test, y_train, y_test)
+
+
+def features_padding(doc_topics, n_topics):
+    topic_distribution = np.zeros(shape=(len(doc_topics), n_topics))
+    i = 0
+    print(len(doc_topics))
+    lda = models.LdaModel.load("multicore_lda_model.model")
+    lda_doc_topics = lda[doc_topics]
+    for row in lda_doc_topics:
+        for (topic_num, prop_topic) in row:
+            topic_distribution[i][topic_num] = prop_topic
+        i += 1
+    return topic_distribution
 
 
 if __name__ == '__main__':
