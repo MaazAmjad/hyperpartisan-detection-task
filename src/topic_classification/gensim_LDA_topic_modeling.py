@@ -119,7 +119,6 @@ with open('document2topic/test30topics.csv', 'w',newline='') as csv_file:
 
 
 
-
 #----------------------------Model Evaluation------------------------------
 from gensim.models import CoherenceModel
 print('\nPerplexity: ', lda5.log_perplexity(corpus))
