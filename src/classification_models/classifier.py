@@ -66,7 +66,21 @@ def combined_classification():
     classifier_n = "SVM"
     classify(feature, classifier_n, X_train, X_test, y_train, y_test)
 
+def classification_with_topic():
+    X_train_liwc, y_train = load_dataset("pkl-objects/train_liwc.pkl")
+    X_test_liwc, y_test = load_dataset("pkl-objects/test_liwc.pkl")
+    X_train_topics = load_dataset("corpus.pkl")
+    X_test_topics = load_dataset("test_corpus.pkl")
+    X_train = hstack([X_train_liwc, X_train_topics])
+    X_test = hstack([X_test_liwc, X_test_topics])
+    feature = "combined_lwic_topics"
+    classifier_n = "linear_regression"
+    classify(feature, classifier_n, X_train, X_test, y_train, y_test)
+    classifier_n = "SVM"
+    classify(feature, classifier_n, X_train, X_test, y_train, y_test)
+
 
 if __name__ == '__main__':
-    combined_classification()
+    # combined_classification()
     # feature_classification("vad")
+    classification_with_topic()
