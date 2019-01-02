@@ -106,30 +106,30 @@ if __name__ == '__main__':
                                                  path+"ground-truth-validation-20180831.xml")
     # articles = dataprocessor.read_articles("/tmp/pycharm_project_127/data/test/articles-training-text.xml",
     #                                       "/tmp/pycharm_project_127/data/test/articles-training.xml", training=True)
-    X_train = []
-    y_train = []
-    X_test = []
-    y_test = []
+    # X_train = []
+    # y_train = []
+    # X_test = []
+    # y_test = []
 
-    # for id in articles:
-    #    X_train.append(" ".join(articles[id].text))
-    #    y_train.append(articles[id].hyperpartisan)
+    # # for id in articles:
+    # #    X_train.append(" ".join(articles[id].text))
+    # #    y_train.append(articles[id].hyperpartisan)
 
-    for id in articles_training:
-        X_train.append(articles_training[id].text)
-        y_train.append(articles_training[id].hyperpartisan)
+    # for id in articles_training:
+    #     X_train.append(articles_training[id].text)
+    #     y_train.append(articles_training[id].hyperpartisan)
 
-    for id in articles_testing:
-        X_test.append(articles_testing[id].text)
-        y_test.append(articles_testing[id].hyperpartisan)
+    # for id in articles_testing:
+    #     X_test.append(articles_testing[id].text)
+    #     y_test.append(articles_testing[id].hyperpartisan)
 
-    print("Done appending labels")
+    # print("Done appending labels")
 
-    # X_train = dataprocessor.vectorizer.transform(X_train)
-    # X_test = dataprocessor.vectorizer.transform(X_test)
+    # # X_train = dataprocessor.vectorizer.transform(X_train)
+    # # X_test = dataprocessor.vectorizer.transform(X_test)
 
-    save_dataset([X_train, y_train], path+'pkl-objects/train_articles.pkl')
-    save_dataset([X_test, y_test], path+'pkl-objects/test_articles.pkl')
+    # save_dataset([X_train, y_train], path+'pkl-objects/train_articles.pkl')
+    # save_dataset([X_test, y_test], path+'pkl-objects/test_articles.pkl')
     # save_dataset(dataprocessor.vectorizer, 'pkl-objects/vectorizer.pkl')
 
     print("Done vectorizing")
