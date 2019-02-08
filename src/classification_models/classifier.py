@@ -1,129 +1,122 @@
-import numpy as np
-from gensim import models
+from joblib import dump
 from scipy.sparse import hstack
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import VotingClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import RobustScaler
 from sklearn.svm import LinearSVC
+from sklearn.tree import DecisionTreeClassifier
 
-from preprocessing.data_processing import load_dataset, count_features, save_dataset
+from preprocessing.data_processing import load_dataset
 
 
 def classifier_init(name):
-    if name == "linear_regression":
-        return LogisticRegression()
-    elif name == "SVM":
-        return LinearSVC()
+    """
+    Initiate the chosen classifier
+    :param name: classifier name which can be either,
+    * svm: support vector machine
+    * gb: gradient boosting
+    * tree: decision tree
+    :return: the chosen classifier or none, if classifier name is wrong
+    """
+    seed = 7
+    if name == "svm":
+        return LinearSVC(loss='squared_hinge', dual=False, random_state=seed)
+    elif name == "gb":
+        num_trees = 200
+        model = GradientBoostingClassifier(n_estimators=num_trees, random_state=seed)
+        return model
+    elif name == "tree":
+        cart = DecisionTreeClassifier()
+        num_trees = 200
+        model = BaggingClassifier(base_estimator=cart, n_estimators=num_trees, random_state=seed)
+        return model
     else:
         return None
 
 
-def load_data(feature_name, train, test):
-    vocabulary = load_dataset("pkl-objects/" + feature_name + ".pkl")
-    vectorizer = count_features(vocabulary)
-    save_dataset(vectorizer, 'pkl-objects/' + feature_name + '_vectorizer.pkl')
-    train = vectorizer.transform(train)
-    test = vectorizer.transform(test)
-    return train, test
+def classify(classifier_name, train, train_label):
+    """
+    This function initiates the classifier and fit it to training data
+    :param classifier_name: classifier name which can be either,
+    * svm: support vector machine
+    * gb: gradient boosting
+    * tree: decision tree
+    :param train: training data
+    :param train_label: truth value of training data
+    :return: trained classifier
+    """
+    model = classifier_init(classifier_name)
+    model.fit(train, train_label)
+    return model
 
 
-def classify(feature_name, classifier_name, train, test, train_label, test_label, cfname="results_classification.csv"):
-    classifier = classifier_init(classifier_name)
-    classifier.fit(train, train_label)
-
-    y_pred = classifier.predict(test)
-    int_predict = y_pred.ravel()
-    np.savetxt(cfname, np.dstack((np.arange(1, int_predict.size + 1), int_predict, test_label))[0], "%d,%d,%d",
-               header="index,prediction,actual")
-
-    classification_result = open("figs/classification_report_" + classifier_name + "_" + feature_name + ".tsv", "w")
-    classification_result.write(classification_report(test_label, y_pred))
-    np.savetxt("coeff_" + cfname, classifier.coef_, delimiter=',')  # X is an array
-
-    print("Wait here")
-
-
-
-def feature_classification(feature):
-    X_train, y_train = load_dataset("pkl-objects/train_v.pkl")
-    X_test, y_test = load_dataset("pkl-objects/test_v.pkl")
-    X_train = [' '.join(row) for row in X_train]
-    X_test = [' '.join(row) for row in X_test]
-    X_train_v, X_test_v = load_data(feature, X_train, X_test)
-    save_dataset([X_train_v, y_train], 'pkl-objects/train_' + feature + '.pkl')
-    save_dataset([X_test_v, y_test], 'pkl-objects/test_' + feature + '.pkl')
-    classifier_n = "linear_regression"
-    classify(feature, classifier_n, X_train_v, X_test_v, y_train, y_test)
-    classifier_n = "SVM"
-    classify(feature, classifier_n, X_train_v, X_test_v, y_train, y_test)
-
-
-def combined_classification():
-    # X_train_tfidf, y_train = load_dataset("pkl-objects/train_tfidf.pkl")
-    # X_test_tfidf, y_test = load_dataset("pkl-objects/test_tfidf.pkl")
-    X_train_liwc, y_train = load_dataset("pkl-objects/train_liwc.pkl")
-    X_test_liwc, y_test = load_dataset("pkl-objects/test_liwc.pkl")
-    # X_train_hedges, y_train = load_dataset("pkl-objects/train_titles.pkl")
-    # X_test_hedges, y_test = load_dataset("pkl-objects/test_titles.pkl")
-    X_train_vad, y_train = load_dataset("pkl-objects/X_train_topics.pkl")
-    X_test_vad, y_test = load_dataset("pkl-objects/X_test_topics.pkl")
-
-    X_train = hstack([X_train_liwc, X_train_vad])
-    X_test = hstack([X_test_liwc, X_test_vad])
-    feature = "combined_nt_with_topics"
-    classifier_n = "linear_regression"
-    classify(feature, classifier_n, X_train, X_test, y_train, y_test, "results30_classification_combined.csv")
-    # classifier_n = "SVM"
-    # classify(feature, classifier_n, X_train, X_test, y_train, y_test)
-
-
-def classification_with_topic_liwc():
-    X_train_liwc, y_train = load_dataset("pkl-objects/train_liwc.pkl")
-    X_test_liwc, y_test = load_dataset("pkl-objects/test_liwc.pkl")
-    X_train_topics = load_dataset("corpus.pkl")
-    X_train_topics = features_padding(doc_topics=X_train_topics, n_topics=30)
-    save_dataset([X_train_topics, y_train], "pkl-objects/X_train_topics.pkl")
-    X_test_topics, y_test = load_dataset("pkl-objects/X_test_topics.pkl")
-    X_train = hstack([X_train_liwc, X_train_topics])
-    X_test = hstack([X_test_liwc, X_test_topics])
-    feature = "combined_lwic_topics30_friday"
-    classifier_n = "linear_regression"
-    classify(feature, classifier_n, X_train, X_test, y_train, y_test, "results30_classification_liwc.csv")
-    # classifier_n = "SVM"
-    # classify(feature, classifier_n, X_train, X_test, y_train, y_test)
-
-
-def classification_with_topic():
-    X_train_liwc, y_train = load_dataset("pkl-objects/train_liwc.pkl")
-    X_test_liwc, y_test = load_dataset("pkl-objects/test_liwc.pkl")
-    X_train_topics = load_dataset("corpus.pkl")
-    X_train_topics = features_padding(doc_topics=X_train_topics, n_topics=30)
-    X_test_topics = load_dataset("test_corpus.pkl")
-    X_test_topics = features_padding(doc_topics=X_test_topics, n_topics=30)
-    X_train = X_train_topics
-    X_test = X_test_topics
-    feature = "topics30_friday"
-    classifier_n = "linear_regression"
-    classify(feature, classifier_n, X_train, X_test, y_train, y_test, "results30_classification.csv")
-    # classifier_n = "SVM"
-    # classify(feature, classifier_n, X_train, X_test, y_train, y_test)
-
-
-def features_padding(doc_topics, n_topics):
-    topic_distribution = np.zeros(shape=(len(doc_topics), n_topics))
-    i = 0
-    print(len(doc_topics))
-
-    lda = models.LdaModel.load("../model/lda30.model")
-    lda_doc_topics = lda[doc_topics]
-    for row in lda_doc_topics:
-        for (topic_num, prop_topic) in row:
-            topic_distribution[i][topic_num] = prop_topic
-        i += 1
-    return topic_distribution
+def vote_classify(train, train_label):
+    """
+    This method uses voting classifier which combines 3 classifiers and returns their best vote
+    :param train:
+    :param train_label:
+    :return: trained vote classifier
+    """
+    # create the sub models
+    estimators = []
+    model1 = classifier_init("svm")
+    estimators.append(('svm', model1))
+    model2 = classifier_init("gb")
+    estimators.append(('gb', model2))
+    model3 = classifier_init("tree")
+    estimators.append(('tree', model3))
+    # create the ensemble model
+    ensemble = VotingClassifier(estimators=estimators)
+    ensemble_p = Pipeline(
+        [('scalar', RobustScaler(with_centering=False)), ('chi2', SelectKBest(chi2, k=300)), ('clf', ensemble)])
+    ensemble_p.fit(train, train_label)
+    return ensemble_p
 
 
 if __name__ == '__main__':
-    combined_classification()
-    # feature_classification("vad")
-    # classification_with_topic_liwc()
-    # classification_with_topic()
+    classification_type = "article"
+    # Load All datasets:
+    id_train, X_train_unigrams, y_train = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_unigrams_' + classification_type + '.pkl')
+    _, X_train_structure, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_structure_' + classification_type + '.pkl')
+    _, X_train_liwc, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_liwc_' + classification_type + '.pkl')
+    _, X_train_punctuation, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_punctuation_' + classification_type + '.pkl')
+    _, X_train_titles, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_titles_' + classification_type + '.pkl')
+    _, X_train_liwc_title, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_liwc_title_' + classification_type + '.pkl')
+    _, X_train_punctuation_title, _ = load_dataset(
+        '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_punctuation_title_'
+        + classification_type + '.pkl')
+    liwc_feature_names, punc_feature_names = load_dataset(
+        "/tmp/hyperpartisan_project/project/new_data/pkl-objects/features_order_" + classification_type + ".pkl")
+    articles_emotions = load_dataset("article_emotions_byarticle.pkl")
+    titles_emotions = load_dataset("titles_emotions_byarticle.pkl")
+
+    # Create TFIDF unigrams
+    articles_vectorizer = TfidfVectorizer(stop_words="english")
+    X_train_tfidf_articles = articles_vectorizer.fit_transform([" ".join(row) for row in X_train_unigrams])
+    titles_vectorizer = TfidfVectorizer(stop_words="english")
+    X_train_tfidf_titles = titles_vectorizer.fit_transform(X_train_titles)
+
+    # Start code for classification:
+    x_train_combined = hstack([X_train_tfidf_articles, X_train_liwc, X_train_punctuation, X_train_structure])
+    SVM = Pipeline([('scalar', RobustScaler(with_centering=False)), ('chi2', SelectKBest(chi2, k=300)),
+                    ('clf', classifier_init("svm"))]).fit(x_train_combined, y_train)
+
+    # Save the classifiers to use later in classification tasks
+    dump(SVM, "/tmp/hyperpartisan_project/project/src/classification_models/by"
+         + classification_type + "_SVM_classification_model.pkl")
+    dump(articles_vectorizer,
+         "/tmp/hyperpartisan_project/project/src/classification_models/by"
+         + classification_type + "_tfidf_articles_model.pkl")
+    dump(titles_vectorizer,
+         "/tmp/hyperpartisan_project/project/src/classification_models/by"
+         + classification_type + "_tfidf_titles_model.pkl")

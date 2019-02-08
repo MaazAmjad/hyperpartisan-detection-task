@@ -1,28 +1,40 @@
+import multiprocessing
 from pickle import dump, load
-from xml.dom import minidom
 
+import numpy as np
+import pandas as pd
 from lxml import etree
 
 import preprocessing.dictionary_features as pdf
 from preprocessing.article_class import ArticleClass
 
 
-# from sklearn.feature_extraction.text import TfidfVectorizer
-
-
-# save a dataset to file
 def save_dataset(dataset, filename):
+    """
+    This method saves a dataset to a file (pickle)
+    :param dataset:
+    :param filename:
+    """
     dump(dataset, open(filename, 'wb'))
     print('Saved: %s' % filename)
 
 
-# load a clean dataset
 def load_dataset(filename):
+    """
+    This method loads a dataset from a file (pickle)
+    :return file: 
+    :param filename:
+    """
     return load(open(filename, 'rb'))
 
 
-def count_features(filename):
-    features = open("/tmp/hyperpartisan_project/project/new_data/dictionary/" + filename + ".csv",
+def read_features(filename):
+    """
+    This function takes the filename of the feature read its contents and return it to the user
+    :param filename: 
+    :return: list of features
+    """
+    features = open("../new_data/dictionary/" + filename + ".csv",
                     encoding="latin-1").readlines()
     new_features = []
     for feature in features:
@@ -32,13 +44,28 @@ def count_features(filename):
 
 
 def construct_features_dictionary(features_index):
+    """
+    This method constructs a feature dictionary.
+    :param features_index: 
+    :return: a dictionary of features where the keys are feature names and value is a list of all the feature contents
+    """
     features = {}
     for feature, index in features_index.items():
-        features[feature] = count_features(features_index[feature])
+        features[feature] = read_features(features_index[feature])
     return features
 
 
+def text_content(element):
+    """
+    This method takes an element and extract the text in it. 
+    :param element: xml element
+    :return: text
+    """
+    return ' '.join([t.strip() for t in element.itertext()])
+
+
 class DataProcessing(object):
+
     def __init__(self):
         self.liwc_features = construct_features_dictionary(pdf.liwc_features_list)
         self.liwc_counts = dict.fromkeys(self.liwc_features.keys(), 0)
@@ -47,16 +74,16 @@ class DataProcessing(object):
                                  paranthesis=['(', ')'], colons=[',', ';', ":"], dot=['.'])
         self.punctuation_counts = dict.fromkeys(self.punctuations.keys(), 0)
         self.punctuation_counts_title = dict.fromkeys(self.punctuations.keys(), 0)
-
-        # self.total_hedges = None
-        # self.total_opinion_lexicon = None
-        # self.total_NRC_VAD_Lexicon = None
         self.count_articles = 0
+        # TODO self.total_hedges = None
+        # TODO self.total_opinion_lexicon = None
+        # TODO self.total_NRC_VAD_Lexicon = None
 
-    def text_content(self, elt):
-        return ' '.join([t.strip() for t in elt.itertext()])
-
-    def efficient_read_article_text(self, articles_filename):
+    def read_article_text(self, articles_filename):
+        """
+        This method reads text, title and publication date from articles.
+        :param articles_filename:
+        """
         context = etree.iterparse(articles_filename, events=('end', 'start'))
         article = None
         for event, elem in context:
@@ -73,27 +100,31 @@ class DataProcessing(object):
                     yield article
                     article = None
 
-            if article == None:
+            if article is None:
                 continue
 
             if event == 'end':
                 if elem.tag == 'article':
-                    article.text = ' '.join([article.text, self.text_content(elem)])
+                    article.text = ' '.join([article.text, text_content(elem)])
                     continue
                 if elem.tag == 'p':
-                    article.text = ' '.join([article.text, self.text_content(elem)])
+                    article.text = ' '.join([article.text, text_content(elem)])
                     article.count_paragraphs += 1
                     continue
                 if elem.tag == 'q':
-                    article.text = ' '.join([article.text, self.text_content(elem)])
+                    article.text = ' '.join([article.text, text_content(elem)])
                     article.count_quotes += 1
                     continue
                 if elem.tag == 'a':
-                    article.text = ' '.join([article.text, self.text_content(elem)])
+                    article.text = ' '.join([article.text, text_content(elem)])
                     article.count_urls += 1
                     continue
 
-    def efficient_read_articles_label(self, labels_filename):
+    def read_articles_label(self, labels_filename):
+        """
+        This method reads article label and url source
+        :param labels_filename:
+        """
         context = etree.iterparse(labels_filename, events=('end', 'start'))
         article = None
         for event, elem in context:
@@ -104,20 +135,25 @@ class DataProcessing(object):
                     article.id = elem.attrib['id']
                     article.url = elem.attrib['url']
                     article.hyperpartisan = (1 if elem.attrib['hyperpartisan'] == "true" else 0)
-                    # article.bias = elem.attrib['bias']
-                    article.labeled_by = elem.attrib['labeled-by']
                     yield article
                     article = None
 
-            if article == None:
+            if article is None:
                 continue
 
     def construct_article_array(self, articles_filename, labels_filename):
+        """
+        This method construct an article array and counts LIWC and punctuation features in it.
+        :param articles_filename:
+        :param labels_filename:
+        :return: list of articles
+        """
         articles = {}
-        for article in self.efficient_read_article_text(articles_filename):
+
+        for article in self.read_article_text(articles_filename):
             articles[article.id] = article
 
-        for article in self.efficient_read_articles_label(labels_filename):
+        for article in self.read_articles_label(labels_filename):
             articles[article.id].hyperpartisan = article.hyperpartisan
             articles[article.id].url = article.url
             articles[article.id].bias = article.bias
@@ -159,85 +195,22 @@ class DataProcessing(object):
         self.count_articles = len(articles)
         return articles
 
-    def old_read_articles(self, articles_filename, labels_filename, training=True):
-        # parse an xml file by name
-        # if training:
-        #    vocabulary = []
-        articles_file = minidom.parse(articles_filename)
-        labels_file = minidom.parse(labels_filename)
-        articles_data = articles_file.getElementsByTagName('article')
-        articles_labels = labels_file.getElementsByTagName('article')
-        articles = dict()
-        for article in articles_data:
-            article_id = article.attributes['id'].value
-            articles[article_id] = ArticleClass(article_id)
-            try:
-                articles[article_id].published_at = article.attributes['published-at'].value
-            except KeyError:
-                articles[article_id].published_at = None
-            articles[article_id].title = article.attributes['title'].value
-            articles[article_id].text = ""
-            paragraphs = article.childNodes
-            for paragraph in paragraphs:
-                if paragraph.nodeType == paragraph.TEXT_NODE:
-                    articles[article_id].text += paragraph.data
-                articles[article_id].text += " ".join(p.data for p in paragraph.childNodes if p.nodeType == p.TEXT_NODE)
 
-            articles[article_id].clean_article()
-            # articles[article_id].split_to_sentences()
-            # if training:
-            #    vocabulary.extend(articles[article_id].text)
-        for label in articles_labels:
-            article_id = label.attributes['id'].value
-            articles[article_id].hyperpartisan = (1 if label.attributes['hyperpartisan'].value == "true" else 0)
-            # articles[article_id].bias = label.attributes['bias'].value
-            articles[article_id].labeled_by = label.attributes['labeled-by'].value
-        print("Done reading data")
-        # if training:
-        #    self.vectorizer = self.extract_features(vocabulary)
-        #    print("Done extracting features")
-
-        return articles
-
-    def old_read_titles(self, articles_filename, labels_filename):
-        articles_file = minidom.parse(articles_filename)
-        labels_file = minidom.parse(labels_filename)
-        articles_data = articles_file.getElementsByTagName('article')
-        articles_labels = labels_file.getElementsByTagName('article')
-        articles = dict()
-        for article in articles_data:
-            article_id = article.attributes['id'].value
-            articles[article_id] = ArticleClass(article_id)
-            articles[article_id].title = article.attributes['title'].value
-            articles[article_id].clean_title()
-
-        for label in articles_labels:
-            article_id = label.attributes['id'].value
-            articles[article_id].hyperpartisan = (1 if label.attributes['hyperpartisan'].value == "true" else 0)
-        print("Done reading data")
-
-        return articles
-
-
-if __name__ == '__main__':
-    dataprocessor = DataProcessing()
-    articles_training = dataprocessor.construct_article_array(
-        "/tmp/hyperpartisan_project/project/new_data/articles-training-byarticle-20181122.xml",
-        "/tmp/hyperpartisan_project/project/new_data/ground-truth-training-byarticle-20181122.xml")
-
-    articles_training_2 = dataprocessor.construct_article_array(
-        "/tmp/hyperpartisan_project/project/new_data/articles-training-bypublisher-20181122.xml",
-        "/tmp/hyperpartisan_project/project/new_data/ground-truth-training-bypublisher-20181122.xml")
-
-    articles_training.update(articles_training_2)
-
-    X_train_unigrams = []
-    X_train_titles = []
-    X_train_liwc = []
-    X_train_punctuation = []
-    X_train_liwc_title = []
-    X_train_punctuation_title = []
-    X_train_structure = []
+def process_data(articles_training, dataprocessor, dataset):
+    """
+    This method extracts and saves individual features in their own files.
+    :param articles_training:
+    :param dataprocessor:
+    :param dataset:
+    :return: training idf of tfidf features
+    """
+    x_train_unigrams = []
+    x_train_titles = []
+    x_train_liwc = []
+    x_train_punctuation = []
+    x_train_liwc_title = []
+    x_train_punctuation_title = []
+    x_train_structure = []
     id_train = []
     y_train = []
 
@@ -246,147 +219,6 @@ if __name__ == '__main__':
     idf_punc_article = {}
     idf_liwc_title = {}
     idf_punc_title = {}
-
-    # idf_punc_title =  {'colons': 0.32878833333333335, 'dot': 0.09152333333333333, 'exclamation_mark': 0.011135,
-    # 'paranthesis': 0.018361666666666665, 'question_mark': 0.05642666666666667,
-    # 'quotation_mark': 0.0067283333333333336}
-
-    # idf_punc_article = {'colons': 0.995825,
-    #  'dot': 0.9955633333333334,
-    #  'exclamation_mark': 0.14768833333333334,
-    #  'paranthesis': 0.6076216666666666,
-    #  'question_mark': 0.31374833333333335,
-    #  'quotation_mark': 0.28462}
-
-    # idf_liwc_title {'Achiev': 0.982685,
-    #  'Adverbs': 0.9875566666666666,
-    #  'Affect': 0.9953533333333333,
-    #  'Anger': 0.56981,
-    #  'Anx': 0.56981,
-    #  'Article': 0.9999333333333333,
-    #  'Assent': 0.87176,
-    #  'AuxVb': 0.99932,
-    #  'Bio': 0.8658166666666667,
-    #  'Body': 0.998315,
-    #  'Cause': 0.91621,
-    #  'Certain': 0.99417,
-    #  'CogMech': 0.85734,
-    #  'Conj': 0.9970966666666666,
-    #  'Death': 0.817125,
-    #  'Discrep': 0.9555216666666667,
-    #  'Excl': 0.996455,
-    #  'Family': 0.9895116666666667,
-    #  'Feel': 0.9511183333333333,
-    #  'Filler': 0.9993566666666667,
-    #  'Friends': 0.5006066666666666,
-    #  'Funct': 0.9999616666666666,
-    #  'Future': 0.817915,
-    #  'Health': 0.9641183333333333,
-    #  'Hear': 0.9214833333333333,
-    #  'Home': 0.97386,
-    #  'Humans': 0.93519,
-    #  'I': 0.99993,
-    #  'Incl': 0.8295683333333334,
-    #  'Ingest': 0.9643466666666667,
-    #  'Inhib': 0.931445,
-    #  'Insight': 0.9996266666666667,
-    #  'Ipron': 0.9851883333333333,
-    #  'Leisure': 0.9797633333333333,
-    #  'Money': 0.8811416666666667,
-    #  'Motion': 0.9997266666666667,
-    #  'Negate': 0.92342,
-    #  'Negemo': 0.9822966666666667,
-    #  'Nonflu': 0.9945633333333334,
-    #  'Numbers': 0.949305,
-    #  'Past': 0.99292,
-    #  'Percept': 0.9932416666666667,
-    #  'Posemo': 0.9929416666666666,
-    #  'Ppron': 0.9999333333333333,
-    #  'Prep': 0.999735,
-    #  'Present': 0.999225,
-    #  'Pronoun': 0.9999333333333333,
-    #  'Quant': 0.9867116666666667,
-    #  'Relativ': 0.9513383333333333,
-    #  'Relig': 0.9438666666666666,
-    #  'Sad': 0.8994066666666667,
-    #  'See': 0.9838666666666667,
-    #  'Sexual': 0.978115,
-    #  'SheHe': 0.9977666666666667,
-    #  'Social': 0.999875,
-    #  'Space': 0.985215,
-    #  'Swear': 0.7030516666666666,
-    #  'Tentat': 0.9016033333333333,
-    #  'They': 0.727005,
-    #  'Time': 0.9996983333333334,
-    #  'Verbs': 0.9995933333333333,
-    #  'We': 0.9853266666666667,
-    #  'Work': 0.9972916666666667,
-    #  'You': 0.8662666666666666}
-
-    #  idf_liwc_article {'Achiev': 0.982685,
-    #  'Adverbs': 0.9875566666666666,
-    #  'Affect': 0.9953533333333333,
-    #  'Anger': 0.56981,
-    #  'Anx': 0.56981,
-    #  'Article': 0.9999333333333333,
-    #  'Assent': 0.87176,
-    #  'AuxVb': 0.99932,
-    #  'Bio': 0.8658166666666667,
-    #  'Body': 0.998315,
-    #  'Cause': 0.91621,
-    #  'Certain': 0.99417,
-    #  'CogMech': 0.85734,
-    #  'Conj': 0.9970966666666666,
-    #  'Death': 0.817125,
-    #  'Discrep': 0.9555216666666667,
-    #  'Excl': 0.996455,
-    #  'Family': 0.9895116666666667,
-    #  'Feel': 0.9511183333333333,
-    #  'Filler': 0.9993566666666667,
-    #  'Friends': 0.5006066666666666,
-    #  'Funct': 0.9999616666666666,
-    #  'Future': 0.817915,
-    #  'Health': 0.9641183333333333,
-    #  'Hear': 0.9214833333333333,
-    #  'Home': 0.97386,
-    #  'Humans': 0.93519,
-    #  'I': 0.99993,
-    #  'Incl': 0.8295683333333334,
-    #  'Ingest': 0.9643466666666667,
-    #  'Inhib': 0.931445,
-    #  'Insight': 0.9996266666666667,
-    #  'Ipron': 0.9851883333333333,
-    #  'Leisure': 0.9797633333333333,
-    #  'Money': 0.8811416666666667,
-    #  'Motion': 0.9997266666666667,
-    #  'Negate': 0.92342,
-    #  'Negemo': 0.9822966666666667,
-    #  'Nonflu': 0.9945633333333334,
-    #  'Numbers': 0.949305,
-    #  'Past': 0.99292,
-    #  'Percept': 0.9932416666666667,
-    #  'Posemo': 0.9929416666666666,
-    #  'Ppron': 0.9999333333333333,
-    #  'Prep': 0.999735,
-    #  'Present': 0.999225,
-    #  'Pronoun': 0.9999333333333333,
-    #  'Quant': 0.9867116666666667,
-    #  'Relativ': 0.9513383333333333,
-    #  'Relig': 0.9438666666666666,
-    #  'Sad': 0.8994066666666667,
-    #  'See': 0.9838666666666667,
-    #  'Sexual': 0.978115,
-    #  'SheHe': 0.9977666666666667,
-    #  'Social': 0.999875,
-    #  'Space': 0.985215,
-    #  'Swear': 0.7030516666666666,
-    #  'Tentat': 0.9016033333333333,
-    #  'They': 0.727005,
-    #  'Time': 0.9996983333333334,
-    #  'Verbs': 0.9995933333333333,
-    #  'We': 0.9853266666666667,
-    #  'Work': 0.9972916666666667,
-    #  'You': 0.8662666666666666}
 
     for feature in dataprocessor.liwc_features.keys():
         idf_liwc_article[feature] = 0
@@ -405,11 +237,11 @@ if __name__ == '__main__':
     for article_id in articles_training:
         id_train.append(article_id)
         # Extract unigram features
-        X_train_unigrams.append(articles_training[article_id].clean_article())
+        x_train_unigrams.append(articles_training[article_id].clean_article())
         # Extract title features
-        X_train_titles.append(articles_training[article_id].title)
+        x_train_titles.append(articles_training[article_id].title)
         # Extract structural features
-        X_train_structure.append([articles_training[article_id].count_quotes,
+        x_train_structure.append([articles_training[article_id].count_quotes,
                                   articles_training[article_id].count_paragraphs,
                                   articles_training[article_id].count_urls])
         # Extract liwc features
@@ -429,8 +261,8 @@ if __name__ == '__main__':
             liwc_title.append(tf_title * idf_liwc_title[feature])
             liwc_order.append(feature)
 
-        X_train_liwc.append(liwc)
-        X_train_liwc_title.append(liwc_title)
+        x_train_liwc.append(liwc)
+        x_train_liwc_title.append(liwc_title)
 
         # Extract punctuation features
         punc = []
@@ -439,8 +271,6 @@ if __name__ == '__main__':
         for feature in dataprocessor.punctuations.keys():
             tf_article = 0
             tf_title = 0
-            idf_title = 0
-            idf_article = 0
             if articles_training[article_id].all_punc != 0:
                 tf_article = articles_training[article_id].punctuation_counts[feature] / articles_training[
                     article_id].all_punc
@@ -450,111 +280,80 @@ if __name__ == '__main__':
             punc.append(tf_article * idf_punc_article[feature])
             punc_title.append(tf_title * idf_punc_title[feature])
             punc_order.append(feature)
-        X_train_punctuation.append(punc)
-        X_train_punctuation_title.append(punc_title)
+        x_train_punctuation.append(punc)
+        x_train_punctuation_title.append(punc_title)
 
         y_train.append(articles_training[article_id].hyperpartisan)
 
-    save_dataset([id_train, X_train_unigrams, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_unigrams.pkl')
-    save_dataset([id_train, X_train_structure, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_structure.pkl')
-    save_dataset([id_train, X_train_liwc, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_liwc.pkl')
-    save_dataset([id_train, X_train_punctuation, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_punctuation.pkl')
+    # Save and export extracted features to be used in classification
+    save_dataset([id_train, x_train_unigrams, y_train],
+                 '../new_data/pkl-objects/train_unigrams_' + dataset + '.pkl')
+    save_dataset([id_train, x_train_structure, y_train],
+                 '../new_data/pkl-objects/train_structure_' + dataset + '.pkl')
+    save_dataset([id_train, x_train_liwc, y_train],
+                 '../new_data/pkl-objects/train_liwc_' + dataset + '.pkl')
+    save_dataset([id_train, x_train_punctuation, y_train],
+                 '../new_data/pkl-objects/train_punctuation_' + dataset + '.pkl')
 
-    save_dataset([id_train, X_train_titles, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_titles.pkl')
-    save_dataset([id_train, X_train_liwc_title, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_liwc_title.pkl')
-    save_dataset([id_train, X_train_punctuation_title, y_train],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_punctuation_title.pkl')
+    save_dataset([id_train, x_train_titles, y_train],
+                 '../new_data/pkl-objects/train_titles_' + dataset + '.pkl')
+    save_dataset([id_train, x_train_liwc_title, y_train],
+                 '../new_data/pkl-objects/train_liwc_title_' + dataset + '.pkl')
+    save_dataset([id_train, x_train_punctuation_title, y_train],
+                 '../new_data/pkl-objects/train_punctuation_title_' + dataset + '.pkl')
 
+    # Save ordered feature names for liwc and punctuation
     save_dataset(
         [[key for key in dataprocessor.liwc_features.keys()], [key for key in dataprocessor.punctuations.keys()]],
-        "/tmp/hyperpartisan_project/project/new_data/pkl-objects/features_order.pkl")
+        "../new_data/pkl-objects/features_order_" + dataset + ".pkl")
 
-    # Test Data extraction:
-    articles_testing = dataprocessor.construct_article_array(
-        "/tmp/hyperpartisan_project/project/new_data/articles-validation-bypublisher-20181122.xml",
-        "/tmp/hyperpartisan_project/project/new_data/ground-truth-validation-bypublisher-20181122.xml")
+    return idf_liwc_article, idf_punc_article, idf_liwc_title, idf_punc_title
 
-    X_test_unigrams = []
-    X_test_titles = []
-    X_test_liwc = []
-    X_test_punctuation = []
-    X_test_liwc_title = []
-    X_test_punctuation_title = []
-    X_test_structure = []
-    id_test = []
-    y_test = []
 
-    for article_id in articles_testing:
-        id_test.append(article_id)
-        # Extract unigram features
-        X_test_unigrams.append(articles_testing[article_id].clean_article())
-        # Extract title features
-        X_test_titles.append(articles_testing[article_id].title)
-        # Extract structural features
-        X_test_structure.append([articles_testing[article_id].count_quotes,
-                                 articles_testing[article_id].count_paragraphs,
-                                 articles_testing[article_id].count_urls])
-        # Extract liwc features
-        liwc = []
-        liwc_title = []
-        liwc_order = []
-        for feature in dataprocessor.liwc_features.keys():
-            tf_article = 0
-            tf_title = 0
-            if articles_testing[article_id].all_liwc != 0:
-                tf_article = articles_testing[article_id].liwc_counts[feature] / articles_testing[article_id].all_liwc
-            if articles_testing[article_id].all_liwc_title != 0:
-                tf_title = articles_testing[article_id].liwc_counts_title[feature] / articles_testing[
-                    article_id].all_liwc_title
+data = pd.read_csv(
+    '../new_data/dictionary/NRC-Emotion-Lexicon/NRC-Emotion-Lexicon-v0.92/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt',
+    sep="	", header=None)
+data.columns = ["word", "emotion", "value"]
+print("Loaded Emotions")
 
-            liwc.append(tf_article * idf_liwc_article[feature])
-            liwc_title.append(tf_title * idf_liwc_title[feature])
-            liwc_order.append(feature)
 
-        X_test_liwc.append(liwc)
-        X_test_liwc_title.append(liwc_title)
+def map_article_emotions(article):
+    """
+    This method counts emotions in each given article
+    :param article:
+    :return: count of emotions in article
+    """
+    article_emotions = np.zeros((10,), dtype=np.int)
+    for word in article:
+        word_emotions = list(data.loc[data['word'] == word]["value"])
+        if len(word_emotions) != 0:
+            article_emotions = np.sum([article_emotions, word_emotions], axis=0)
+    return article_emotions
 
-        # Extract punctuation features
-        punc = []
-        punc_title = []
-        punc_order = []
-        for feature in dataprocessor.punctuations.keys():
-            tf_article = 0
-            tf_title = 0
-            idf_title = 0
-            idf_article = 0
-            if articles_testing[article_id].all_punc != 0:
-                tf_article = articles_testing[article_id].punctuation_counts[feature] / articles_testing[
-                    article_id].all_punc
-            if articles_testing[article_id].all_punc_title != 0:
-                tf_title = articles_testing[article_id].punctuation_counts_title[feature] / articles_testing[
-                    article_id].all_punc_title
-            punc.append(tf_article * idf_punc_article[feature])
-            punc_title.append(tf_title * idf_punc_title[feature])
-            punc_order.append(feature)
-        X_test_punctuation.append(punc)
-        X_test_punctuation_title.append(punc_title)
 
-        y_test.append(articles_testing[article_id].hyperpartisan)
+def extract_emotions(articles):
+    """
+    Extract and count emotions from a list of articles
+    :param articles:
+    :return: list of extracted counts of emotions from given articles
+    """
+    cores = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(cores)
+    emotions = list(pool.map(map_article_emotions, articles))
+    return emotions
 
-    save_dataset([id_test, X_test_unigrams, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_unigrams.pkl')
-    save_dataset([id_test, X_test_structure, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_structure.pkl')
-    save_dataset([id_test, X_test_liwc, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_liwc.pkl')
-    save_dataset([id_test, X_test_punctuation, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_punctuation.pkl')
 
-    save_dataset([id_test, X_test_titles, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_titles.pkl')
-    save_dataset([id_test, X_test_liwc_title, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_liwc_title.pkl')
-    save_dataset([id_test, X_test_punctuation_title, y_test],
-                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/test_punctuation_title.pkl')
+if __name__ == '__main__':
+    dataprocessor1 = DataProcessing()
+    # Extract all information from xml and construct articles array
+    articles_training_1 = dataprocessor1.construct_article_array(
+        "/tmp/hyperpartisan_project/project/new_data/articles-training-byarticle-20181122.xml",
+        "/tmp/hyperpartisan_project/project/new_data/ground-truth-training-byarticle-20181122.xml")
+
+    # Calculate tfidf for all features
+    idf_liwc_article1, idf_punc_article1, idf_liwc_title1, idf_punc_title1 = process_data(articles_training_1,
+                                                                                          dataprocessor1, "article")
+
+    # Save training idfs for later use in testing
+    save_dataset([idf_liwc_article1, idf_punc_article1, idf_liwc_title1, idf_punc_title1],
+                 '/tmp/hyperpartisan_project/project/new_data/pkl-objects/train_idf_by_articles.pkl')
