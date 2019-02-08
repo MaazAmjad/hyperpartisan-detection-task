@@ -114,5 +114,5 @@ venv.bak/
 */dictionary
 *.txt
 .DS_Store
-Icon[\r]
+Icon\r
 .idea/
