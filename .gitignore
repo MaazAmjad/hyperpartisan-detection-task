@@ -111,7 +111,8 @@ venv.bak/
 *.csv
 *.xsd
 *.xml
-/dictionary
+*/dictionary
 *.txt
 .DS_Store
-icon
+Icon
+.idea
