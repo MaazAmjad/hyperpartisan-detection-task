@@ -1,16 +1,16 @@
 measure{
   key: "accuracy"
-  value: "0.9612403100775194"
+  value: "0.8992248062015504"
 }
 measure{
   key: "precision"
-  value: "0.9907834101382489"
+  value: "1.0"
 }
 measure{
   key: "recall"
-  value: "0.9033613445378151"
+  value: "0.726890756302521"
 }
 measure{
   key: "f1"
-  value: "0.945054945054945"
+  value: "0.8418491484184915"
 }

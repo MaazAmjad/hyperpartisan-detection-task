@@ -181,9 +181,8 @@ class DataProcessing(object):
     def classify_article(self, articles_filename):
         # Load Classifier:
         idf_liwc_article, idf_punc_article, idf_liwc_title, idf_punc_title = load_dataset("train_idf_by_articles.pkl")
-        classifier = load("byarticle_classification_model.pkl")
-        svd = load("byarticle_svd_model.pkl")
-        tfidf = load("byarticle_tfidf_model.pkl")
+        classifier = load("byarticle_SVM_classification_model.pkl")
+        tfidf = load("byarticle_tfidf_articles_model.pkl")
 
         for article in self.efficient_read_article_text(articles_filename):
             for feature, words in self.liwc_features.items():
@@ -234,7 +233,6 @@ class DataProcessing(object):
                 punctuation.append(tf_article * idf_punc_article[feature])
 
             test_article = hstack([unigrams, [liwc], [punctuation], [structure]])
-            test_article = svd.transform(test_article)
             # Classify Article
             clf_pred = classifier.predict(test_article)[0]
             prediction = ("true" if clf_pred == 1 else "false")
