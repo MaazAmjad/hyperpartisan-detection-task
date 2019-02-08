@@ -1,9 +1,9 @@
 from string import punctuation
+from typing import List, Any
 
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import sent_tokenize
-from typing import List, Any
 
 
 class ArticleClass:
@@ -63,7 +63,7 @@ class ArticleClass:
         This method cleans the article and stores its text as an array of tokens.
         """
         # split into tokens by white space
-        tokens = self.title.split()
+        tokens = self.title.split(" ")
         # remove punctuation from each token
         table = str.maketrans('', '', punctuation)
         tokens = [w.translate(table) for w in tokens]  # type: List[Any]
