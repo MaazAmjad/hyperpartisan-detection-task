@@ -113,3 +113,5 @@ venv.bak/
 *.xml
 /dictionary
 *.txt
+.DS_Store
+icon
