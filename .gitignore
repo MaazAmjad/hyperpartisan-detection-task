@@ -115,4 +115,5 @@ venv.bak/
 *.txt
 .DS_Store
 Icon\r
-.idea/gensim_lda_topic_classification.py
+.idea/
+gensim_lda_topic_classification.py
